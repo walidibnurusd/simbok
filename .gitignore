@@ -1,0 +1,38 @@
+# Laravel & PHP
+/vendor/
+/node_modules/
+.env
+.env.*  # Optional: ignore other env files like .env.testing
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+composer.lock  # Optional: keep this if you want exact dependencies
+public/storage
+storage/*.key
+storage/app/public
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/testing/*
+storage/framework/views/*
+storage/logs/*
+
+# IDEs and editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Laravel Sail
+docker-compose.override.yml
+
+# Laravel Telescope
+telescope/requests.sqlite
+
+# Laravel Ignition
+ignition*.json

@@ -75,19 +75,7 @@
                                     <td>{{ $loop->iteration }}</td>
                                     <td>{{ $item->date }}</td>
                                     <td>{{ $item->location }}</td>
-                                    <td>
-                                        @if ($item->employees)
-                                            @php
-                                                $employeeIds = json_decode($item->employees, true);
-                                                $employeeNames = \App\Models\User::whereIn('id', $employeeIds)
-                                                    ->pluck('name')
-                                                    ->toArray();
-                                            @endphp
-                                            {{ implode(', ', $employeeNames) }}
-                                        @else
-                                            No employees assigned
-                                        @endif
-                                    </td>
+									<td>{{ $item->employee_names_str }}</td>
                                     <td>
                                         <button type="button"
                                             class="btn btn-primary btn-sm text-white font-weight-bold d-flex align-items-center btn-edit"
@@ -244,22 +232,39 @@
                 data: formData,
                 contentType: false,
                 processData: false,
-                success: function(response) {
-                    if (response.success) {
-                        alert("Data berhasil disimpan!");
+				success: function(response) {
+				    if (response.success) {
+				        alert("Data berhasil disimpan!");
 
-                        // Simpan activity_id ke sessionStorage untuk membuka modal yang sesuai setelah reload
-                        sessionStorage.setItem('activityId', '{{ $activity->id }}');
+				        const tableBody = $j('#detailsTable{{ $activity->id }} tbody');
+				        tableBody.empty();
 
-                        // Optionally, update the table dynamically instead of reloading
-                        // location.reload(); // Optionally reload page
-                        setTimeout(function() {
-                            location.reload();
-                        }, 500);
-                    } else {
-                        alert("Terjadi kesalahan. Coba lagi.");
-                    }
-                },
+				        response.activityDetails.forEach((item, index) => {
+				            const newRow = `
+				                <tr>
+				                    <td>${index + 1}</td>
+				                    <td>${item.date}</td>
+				                    <td>${item.location}</td>
+				                    <td>${item.employee_names_str}</td>
+				                    <td>
+				                        <button type="button" class="btn btn-primary btn-sm text-white font-weight-bold d-flex align-items-center btn-edit" data-id="${item.id}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+				                            <i class="fas fa-edit"></i>
+				                        </button>
+				                        <button type="button" class="btn btn-danger btn-sm text-white font-weight-bold d-flex align-items-center btn-delete-modal" data-id="${item.id}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+				                            <i class="fas fa-trash-alt"></i>
+				                        </button>
+				                    </td>
+				                </tr>
+				            `;
+
+				            tableBody.append(newRow);
+				        });
+
+				        // Optionally reset form
+				    } else {
+				        alert("Terjadi kesalahan. Coba lagi.");
+				    }
+				},
                 error: function(xhr) {
                     alert('Terjadi kesalahan saat mengirim data.');
                 }
@@ -337,30 +342,30 @@
         });
 
 
-        $j('#detailsTable{{ $activity->id }}').on('click', '.btn-delete-modal', function() {
-            var id = $j(this).data('id');
-            var action = '{{ route('activity.deleteDetail', ':id') }}';
-            action = action.replace(':id', id);
+		$j('#detailsTable{{ $activity->id }}').on('click', '.btn-delete-modal', function () {
+		    var button = $j(this);
+		    var id = button.data('id');
+		    var action = '{{ route('activity.deleteDetail', ':id') }}';
+		    action = action.replace(':id', id);
 
-            if (confirm('Apakah Anda yakin ingin menghapus item ini?')) {
-                // Jika konfirmasi hapus diklik, kirimkan permintaan DELETE
-                $j.ajax({
-                    url: action,
-                    type: 'DELETE',
-                    data: {
-                        _token: '{{ csrf_token() }}'
-                    },
-                    success: function(response) {
-                        alert('Item telah dihapus.');
-                        // Reload halaman atau lakukan tindakan lain setelah sukses
-                        location.reload();
-                    },
-                    error: function(xhr) {
-                        alert('Terjadi kesalahan saat menghapus item.');
-                    }
-                });
-            }
-        });
+		    if (confirm('Apakah Anda yakin ingin menghapus item ini?')) {
+		        $j.ajax({
+		            url: action,
+		            type: 'DELETE',
+		            data: {
+		                _token: '{{ csrf_token() }}'
+		            },
+		            success: function (response) {
+		                alert('Item telah dihapus.');
+		                // Hapus baris tabel tanpa reload
+		                button.closest('tr').remove();
+		            },
+		            error: function (xhr) {
+		                alert('Terjadi kesalahan saat menghapus item.');
+		            }
+		        });
+		    }
+		});
     });
 </script>
 <style>

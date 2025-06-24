@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Yajra\DataTables\Facades\DataTables;
 use Mpdf\Mpdf;
+use App\Http\Requests\SubmitActivityProofRequest;
 
 class ActivityController extends Controller
 {
@@ -283,105 +284,103 @@ class ActivityController extends Controller
             return redirect()->back()->withErrors('An error occurred while adding the activity. Please try again.');
         }
     }
-    public function storeProof(Request $request)
-    {
-        try {
-            // Validasi data yang dimasukkan
-            $validatedData = $request->validate([
-                'activity_id' => 'required|integer',
-                'image' => 'image|mimes:png,jpg,jpeg|max:2048',
-                'advice' => 'required|string',
-                'value' => 'required|string',
-            ]);
+	public function storeProof(SubmitActivityProofRequest $request)
+	{
+		try {
+			// Validasi data yang dimasukkan
+			// $validatedData = $request->validate([
+			//     'activity_id' => 'required|integer',
+			//     'image' => 'image|mimes:png,jpg,jpeg|max:2048',
+			//     'advice' => 'required|string',
+			//     'value' => 'required|string',
+			// ]);
 
-            // Inisialisasi variabel untuk jalur foto
-            $photoPath = null;
-            $fileName = null;
-            $userId = Auth::user()->id;
+			// Inisialisasi variabel untuk jalur foto
+			$photoPath = null;
+			$fileName = null;
+			$userId = Auth::user()->id;
 
-            // Proses upload gambar jika ada file yang di-upload
-            if ($request->hasFile('image')) {
-                $file = $request->file('image');
+			// Proses upload gambar jika ada file yang di-upload
+			if ($request->hasFile('image')) {
+				$file = $request->file('image');
 
-                // Cek apakah file valid
-                if ($file->isValid()) {
-                    // Generate nama file unik
-                    $fileName = uniqid() . '.' . $file->getClientOriginalExtension();
+				// Cek apakah file valid
+				if ($file->isValid()) {
+					// Generate nama file unik
+					$fileName = uniqid() . '.' . $file->getClientOriginalExtension();
 
-                    // Simpan file ke direktori 'public/storage/proof'
-                    $photoPath = $file->move(public_path('storage/proof'), $fileName);
+					// Simpan file ke direktori 'public/storage/proof'
+					$photoPath = $file->move(public_path('storage/proof'), $fileName);
 
-                    // Log path untuk keperluan debugging
-                    Log::info('Photo uploaded to: ' . $photoPath);
-                } else {
-                    Log::error('Uploaded file is not valid.');
-                }
-            }
+					// Log path untuk keperluan debugging
+					Log::info('Photo uploaded to: ' . $photoPath);
+				} else {
+					Log::error('Uploaded file is not valid.');
+				}
+			}
 
-            // Cari apakah activity_id sudah ada di tabel
-            $activity = ActivityProof::where('activity_id', $validatedData['activity_id'])->first();
+			// Cari apakah activity_id sudah ada di tabel
+			$activity = ActivityProof::where('activity_id', $request->activity_id)->first();
 
-            if ($activity) {
-                // Jika activity_id sudah ada, update data yang ada
-                $activity->advice = $validatedData['advice'];
-                $activity->value = $validatedData['value'];
+			if ($activity) {
+				// Jika activity_id sudah ada, update data yang ada
+				$activity->advice = $request->advice;
+				$activity->value = $request->value;
 
-                // Update gambar jika ada gambar baru
-                if ($fileName) {
-                    $activity->image = 'proof/' . $fileName;
-                }
+				// Update gambar jika ada gambar baru
+				if ($fileName) {
+					$activity->image = 'proof/' . $fileName;
+				}
+				$activity->save();
 
-                $activity->save();
-                $adviceActivity = AdviceActivityProof::where('activity_proof_id', $activity->id)->where('user_id', $userId)->first();
+				$adviceActivity = AdviceActivityProof::where('activity_proof_id', $activity->id)->where('user_id', $userId)->first();
 
-                if ($adviceActivity) {
-                    $adviceActivity->advice = $validatedData['advice'];
-                    $adviceActivity->activity_proof_id = $activity->id;
-                    $adviceActivity->save();
-                } else {
-                    $adviceActivity = new AdviceActivityProof();
-                    $adviceActivity->advice = $validatedData['advice'];
-                    $adviceActivity->activity_proof_id = $activity->id;
-                    $adviceActivity->user_id = $userId;
-                    $adviceActivity->save();
-                }
-                return redirect()->back()->with('success', 'Data kegiatan diperbarui dengan sukses.');
-            } else {
-                // Jika activity_id tidak ditemukan, buat record baru
-                $activity = new ActivityProof();
-                $activity->activity_id = $validatedData['activity_id'];
-                $activity->advice = $validatedData['advice'];
-                $activity->value = $validatedData['value'];
+				if ($adviceActivity) {
+					$adviceActivity->advice = $request->advice;
+					$adviceActivity->activity_proof_id = $activity->id;
+					$adviceActivity->save();
+				} else {
+					$adviceActivity = new AdviceActivityProof();
+					$adviceActivity->advice = $request->advice;
+					$adviceActivity->activity_proof_id = $activity->id;
+					$adviceActivity->user_id = $userId;
+					$adviceActivity->save();
+				}
+				return redirect()->back()->with('success', 'Data kegiatan diperbarui dengan sukses.');
+			} else {
+				// Jika activity_id tidak ditemukan, buat record baru
+				$activity = new ActivityProof();
+				$activity->activity_id = $request->activity_id;
+				$activity->advice = $request->advice;
+				$activity->value = $request->value;
 
-                // Tambahkan gambar jika ada
-                if ($fileName) {
-                    $activity->image = 'proof/' . $fileName;
-                }
+				// Tambahkan gambar jika ada
+				$activity->image = $fileName ? 'proof/' . $fileName : '';
+				$activity->save();
 
-                $activity->save();
-                $adviceActivity = AdviceActivityProof::where('activity_proof_id', $activity->id)->where('user_id', $userId)->first();
-                if ($adviceActivity) {
-                    $adviceActivity->advice = $validatedData['advice'];
-                    $adviceActivity->activity_proof_id = $activity->id;
-                    $adviceActivity->save();
-                } else {
-                    $adviceActivity = new AdviceActivityProof();
-                    $adviceActivity->advice = $validatedData['advice'];
-                    $adviceActivity->activity_proof_id = $activity->id;
-                    $adviceActivity->user_id = $userId;
-                    $adviceActivity->save();
-                }
+				$adviceActivity = AdviceActivityProof::where('activity_proof_id', $activity->id)->where('user_id', $userId)->first();
+				if ($adviceActivity) {
+					$adviceActivity->advice = $request->advice;
+					$adviceActivity->activity_proof_id = $activity->id;
+					$adviceActivity->save();
+				} else {
+					$adviceActivity = new AdviceActivityProof();
+					$adviceActivity->advice = $request->advice;
+					$adviceActivity->activity_proof_id = $activity->id;
+					$adviceActivity->user_id = $userId;
+					$adviceActivity->save();
+				}
 
-                return redirect()->back()->with('success', 'Tambah bukti data kegiatan berhasil.');
-            }
-        } catch (Exception $e) {
-            // Log kesalahan jika terjadi
-            Log::error('Error adding or updating activity: ' . $e->getMessage());
+				return redirect()->back()->with('success', 'Tambah bukti data kegiatan berhasil.');
+			}
+		} catch (Exception $e) {
+			// Log kesalahan jika terjadi
+			Log::error('Error adding or updating activity: ' . $e->getMessage());
 
-            // Redirect dengan pesan error
-            return redirect()->back()->withErrors('Terjadi kesalahan saat menambah atau memperbarui data kegiatan. Silakan coba lagi.');
-        }
-    }
+			// Redirect dengan pesan error
+			return redirect()->back()->withErrors('Terjadi kesalahan saat menambah atau memperbarui data kegiatan. Silakan coba lagi.');
+		}
+	}
 
     public function update(Request $request, $id)
     {
